@@ -1,0 +1,8 @@
+RP_NAME="Snail Mail with Clara"
+RP_ID="localhost"
+ORIGIN="http://localhost:8787"
+BUILD_SHA="development"
+NOTIFY_FROM="notifications@snailmailwithclara.facey.page"
+REPOSITORY_URL="https://github.com/JolliestRog/snailmailwithclara"
+BOOTSTRAP_USERNAME="clara"
+BOOTSTRAP_TOKEN_HASH="generate-with-npm-run-bootstrap"

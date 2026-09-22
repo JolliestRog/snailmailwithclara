@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Envelope stamp">
+  <rect width="64" height="64" rx="8" fill="#f2e9d8"/>
+  <path d="M8 15h48v34H8z" fill="#e33b2e" stroke="#171513" stroke-width="4"/>
+  <path d="m10 18 22 18 22-18M10 46l15-15m29 15L39 31" fill="none" stroke="#171513" stroke-width="4"/>
+</svg>
