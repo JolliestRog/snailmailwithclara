@@ -35,6 +35,7 @@
     "RP_ID": "snailmailwithclara.facey.page",
     "ORIGIN": "https://snailmailwithclara.facey.page",
     "NOTIFY_FROM": "notifications@snailmailwithclara.facey.page",
+    "RESEND_FROM": "Snail Mail with Clara <noreply@riotbuddies.facey.page>",
     "REPOSITORY_URL": "https://github.com/JolliestRog/snailmailwithclara",
     "BUILD_SHA": "development",
   },

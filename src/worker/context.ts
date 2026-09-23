@@ -12,6 +12,9 @@ export interface Env {
   BUILD_SHA: string;
   NOTIFY_FROM: string;
   REPOSITORY_URL: string;
+  RESEND_API_KEY?: string;
+  RESEND_FROM?: string;
+  N8N_FEEDBACK_WEBHOOK_URL?: string;
   BOOTSTRAP_TOKEN_HASH?: string;
   BOOTSTRAP_USERNAME?: string;
   EMAIL?: {
@@ -30,7 +33,7 @@ export async function notify(
   subject: string,
   text: string,
 ): Promise<void> {
-  if (!env.EMAIL) return;
+  if (!env.EMAIL && !env.RESEND_API_KEY) return;
   const recipient = await env.DB.prepare(
     "SELECT email FROM users WHERE id = ? AND status = 'active' AND email_notifications = 1 AND email IS NOT NULL",
   )
@@ -38,12 +41,30 @@ export async function notify(
     .first<{ email: string }>();
   if (!recipient) return;
   try {
-    await env.EMAIL.send({
-      from: env.NOTIFY_FROM,
-      to: recipient.email,
-      subject,
-      text: `${text}\n\nOpen ${env.ORIGIN}/app`,
-    });
+    const message = `${text}\n\nOpen ${env.ORIGIN}/app`;
+    if (env.RESEND_API_KEY) {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM ?? env.NOTIFY_FROM,
+          to: [recipient.email],
+          subject,
+          text: message,
+        }),
+      });
+      if (!response.ok) throw new Error(`Resend returned ${response.status}.`);
+    } else if (env.EMAIL) {
+      await env.EMAIL.send({
+        from: env.NOTIFY_FROM,
+        to: recipient.email,
+        subject,
+        text: message,
+      });
+    }
   } catch (error) {
     console.error(
       "notification_delivery_failed",

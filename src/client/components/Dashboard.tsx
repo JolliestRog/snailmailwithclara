@@ -2,10 +2,12 @@ import { useState } from "react";
 import type { CurrentUser } from "../../shared/types";
 import { CurationPage } from "./CurationPage";
 import { DirectoryPage } from "./DirectoryPage";
+import { FeedbackPage } from "./FeedbackPage";
 import { InboxPage } from "./InboxPage";
 import { ModerationPage } from "./ModerationPage";
 import { RoulettePage } from "./RoulettePage";
 import { SettingsPage } from "./SettingsPage";
+import { UpdatesPage } from "./UpdatesPage";
 import { VaultPage } from "./VaultPage";
 
 type Tab =
@@ -14,6 +16,8 @@ type Tab =
   | "roulette"
   | "vault"
   | "settings"
+  | "feedback"
+  | "updates"
   | "curation"
   | "moderation";
 
@@ -34,9 +38,16 @@ export function Dashboard(props: Props) {
     ["roulette", "Roulette"],
     ["vault", "Address vault"],
     ["settings", "Settings"],
+    ["feedback", "Feedback"],
   ];
   if (props.user.roles.includes("curator"))
     tabs.push(["curation", "Clara’s page"]);
+  if (
+    props.user.roles.includes("curator") ||
+    props.user.roles.includes("moderator") ||
+    props.user.roles.includes("security_admin")
+  )
+    tabs.push(["updates", "Updates"]);
   if (props.user.roles.includes("moderator"))
     tabs.push(["moderation", "Moderation"]);
   return (
@@ -87,7 +98,9 @@ export function Dashboard(props: Props) {
         {tab === "settings" && (
           <SettingsPage user={props.user} refreshUser={props.refreshUser} />
         )}
+        {tab === "feedback" && <FeedbackPage />}
         {tab === "curation" && <CurationPage />}
+        {tab === "updates" && <UpdatesPage user={props.user} />}
         {tab === "moderation" && <ModerationPage user={props.user} />}
       </section>
     </main>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { CurrentUser, Role } from "../../shared/types";
+import type { CurrentUser, FeedbackView, Role } from "../../shared/types";
 import { api, jsonBody } from "../api";
 import { PageTitle } from "./VaultPage";
 
@@ -40,6 +40,7 @@ export function ModerationPage({ user }: { user: CurrentUser }) {
   const [members, setMembers] = useState<PendingMember[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackView[]>([]);
   const [inviteOutput, setInviteOutput] = useState("");
   const [inviteCount, setInviteCount] = useState(1);
   const [inviteDays, setInviteDays] = useState(7);
@@ -49,14 +50,18 @@ export function ModerationPage({ user }: { user: CurrentUser }) {
   const [error, setError] = useState("");
   const [recoveryUsername, setRecoveryUsername] = useState("");
   async function load() {
-    const [memberData, reportData, auditData] = await Promise.all([
-      api<{ members: PendingMember[] }>("/api/moderation/members"),
-      api<{ reports: Report[] }>("/api/moderation/reports"),
-      api<{ events: AuditEvent[] }>("/api/moderation/audit"),
-    ]);
+    const [memberData, reportData, auditData, feedbackData] = await Promise.all(
+      [
+        api<{ members: PendingMember[] }>("/api/moderation/members"),
+        api<{ reports: Report[] }>("/api/moderation/reports"),
+        api<{ events: AuditEvent[] }>("/api/moderation/audit"),
+        api<{ feedback: FeedbackView[] }>("/api/moderation/feedback"),
+      ],
+    );
     setMembers(memberData.members);
     setReports(reportData.reports);
     setEvents(auditData.events);
+    setFeedback(feedbackData.feedback);
   }
   useEffect(() => {
     void load().catch((e) =>
@@ -127,6 +132,17 @@ export function ModerationPage({ user }: { user: CurrentUser }) {
       ...jsonBody({ status, suspendSubject }),
     });
     setNotice("Report updated.");
+    await load();
+  }
+  async function updateFeedback(
+    item: FeedbackView,
+    status: FeedbackView["status"],
+  ) {
+    await api(`/api/moderation/feedback/${item.id}`, {
+      method: "POST",
+      ...jsonBody({ status }),
+    });
+    setNotice(`Feedback marked ${status}.`);
     await load();
   }
   return (
@@ -295,6 +311,56 @@ export function ModerationPage({ user }: { user: CurrentUser }) {
           </div>
         </section>
       </div>
+      <section className="panel audit-panel">
+        <h2>
+          Beta feedback <span className="count-badge">{feedback.length}</span>
+        </h2>
+        <div className="stack-list">
+          {feedback.length === 0 && <p className="empty">No feedback yet.</p>}
+          {feedback.map((item) => (
+            <article className="report-card" key={item.id}>
+              <div className="message-heading">
+                <strong>{item.title}</strong>
+                <span className={`status status-${item.status}`}>
+                  {item.status}
+                </span>
+              </div>
+              <small>
+                {item.kind} from @{item.username} · build{" "}
+                {item.buildSha.slice(0, 10)}
+                {item.n8nStatus !== "delivered" &&
+                  ` · automation ${item.n8nStatus}`}
+              </small>
+              <p className="pre-wrap">{item.summary}</p>
+              {item.steps && (
+                <details>
+                  <summary>Steps and expected result</summary>
+                  <p className="pre-wrap">{item.steps}</p>
+                  {item.expected && <p>Expected: {item.expected}</p>}
+                  {item.actual && <p>Actual: {item.actual}</p>}
+                </details>
+              )}
+              <div className="button-row">
+                <button onClick={() => updateFeedback(item, "triaged")}>
+                  Triaged
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => updateFeedback(item, "planned")}
+                >
+                  Planned
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => updateFeedback(item, "closed")}
+                >
+                  Close
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
       <section className="panel audit-panel">
         <h2>Recent audit trail</h2>
         <table>

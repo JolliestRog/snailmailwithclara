@@ -10,6 +10,13 @@ import {
 } from "./auth";
 import type { Env } from "./context";
 import {
+  createAnnouncement,
+  dispatchAnnouncementEmails,
+  listMessages,
+  markMessageRead,
+  retryAnnouncementEmails,
+} from "./communications";
+import {
   getCuration,
   listRevisions,
   media,
@@ -20,6 +27,12 @@ import {
   uploadImage,
 } from "./curation";
 import { assertSameOrigin, errorResponse, json } from "./http";
+import {
+  createFeedback,
+  dispatchPendingFeedback,
+  listFeedback,
+  updateFeedbackStatus,
+} from "./feedback";
 import {
   createReport,
   createRequest,
@@ -109,6 +122,23 @@ const routes: Route[] = [
   { method: "PATCH", pattern: /^\/api\/profile$/u, handler: updateProfile },
   { method: "PATCH", pattern: /^\/api\/settings$/u, handler: updateSettings },
   { method: "GET", pattern: /^\/api\/directory$/u, handler: directory },
+  { method: "GET", pattern: /^\/api\/messages$/u, handler: listMessages },
+  {
+    method: "POST",
+    pattern: /^\/api\/messages\/(personal|announcement)\/([^/]+)\/read$/u,
+    handler: markMessageRead,
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/announcements$/u,
+    handler: createAnnouncement,
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/announcements\/retry$/u,
+    handler: retryAnnouncementEmails,
+  },
+  { method: "POST", pattern: /^\/api\/feedback$/u, handler: createFeedback },
   { method: "GET", pattern: /^\/api\/vault$/u, handler: getVault },
   { method: "PUT", pattern: /^\/api\/vault$/u, handler: putVault },
   {
@@ -201,6 +231,16 @@ const routes: Route[] = [
     handler: resolveReport,
   },
   { method: "GET", pattern: /^\/api\/moderation\/audit$/u, handler: auditLog },
+  {
+    method: "GET",
+    pattern: /^\/api\/moderation\/feedback$/u,
+    handler: listFeedback,
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/moderation\/feedback\/([^/]+)$/u,
+    handler: updateFeedbackStatus,
+  },
 ];
 
 async function handle(request: Request, env: Env): Promise<Response> {
@@ -261,6 +301,12 @@ export default {
     env: Env,
     context: ExecutionContext,
   ): Promise<void> {
-    context.waitUntil(cleanup(env));
+    context.waitUntil(
+      Promise.all([
+        cleanup(env),
+        dispatchPendingFeedback(env),
+        dispatchAnnouncementEmails(env),
+      ]).then(() => undefined),
+    );
   },
 };

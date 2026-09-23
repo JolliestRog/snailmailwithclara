@@ -1,0 +1,57 @@
+[
+  {
+    "id": "SMWCFeedbackIntake",
+    "name": "Snail Mail with Clara — feedback intake",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "REPLACE_WITH_RANDOM_WEBHOOK_PATH",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "c8b92f8e-0d5b-47ac-b447-3588a95f8a27",
+        "name": "Feedback webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2.1,
+        "position": [0, 0],
+        "webhookId": "9db489af-7475-41fe-82b1-573d5f3d602e"
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={{ { accepted: true, feedbackId: $json.body.feedback.id } }}",
+          "options": {}
+        },
+        "id": "6a60f045-c51d-4bc8-b52a-4471b3e1412f",
+        "name": "Accept feedback",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.4,
+        "position": [240, 0]
+      }
+    ],
+    "pinData": {},
+    "connections": {
+      "Feedback webhook": {
+        "main": [
+          [
+            {
+              "node": "Accept feedback",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "versionId": "535e69f0-4ec8-477f-8968-ac6f12d857b9",
+    "meta": {
+      "templateCredsSetupCompleted": true
+    },
+    "tags": []
+  }
+]

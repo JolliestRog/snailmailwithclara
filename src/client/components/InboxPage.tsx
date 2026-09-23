@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type {
+  AccountMessage,
   CurrentUser,
   GrantView,
   MailRequestView,
@@ -28,6 +29,7 @@ export function InboxPage({
   const [requests, setRequests] = useState<MailRequestView[]>([]);
   const [matches, setMatches] = useState<MatchWithReleaseKey[]>([]);
   const [grants, setGrants] = useState<GrantView[]>([]);
+  const [messages, setMessages] = useState<AccountMessage[]>([]);
   const [vault, setVault] = useState<VaultRecord | null>(null);
   const [openAddress, setOpenAddress] = useState<{
     id: string;
@@ -38,16 +40,19 @@ export function InboxPage({
   const [error, setError] = useState("");
   const releasing = useRef(false);
   async function load() {
-    const [requestData, matchData, grantData, vaultData] = await Promise.all([
-      api<{ requests: MailRequestView[] }>("/api/requests"),
-      api<{ matches: MatchWithReleaseKey[] }>("/api/roulette"),
-      api<{ grants: GrantView[] }>("/api/grants"),
-      api<{ vault: VaultRecord }>("/api/vault"),
-    ]);
+    const [requestData, matchData, grantData, vaultData, messageData] =
+      await Promise.all([
+        api<{ requests: MailRequestView[] }>("/api/requests"),
+        api<{ matches: MatchWithReleaseKey[] }>("/api/roulette"),
+        api<{ grants: GrantView[] }>("/api/grants"),
+        api<{ vault: VaultRecord }>("/api/vault"),
+        api<{ messages: AccountMessage[] }>("/api/messages"),
+      ]);
     setRequests(requestData.requests);
     setMatches(matchData.matches);
     setGrants(grantData.grants);
     setVault(vaultData.vault);
+    setMessages(messageData.messages);
   }
   useEffect(() => {
     void load().catch((caught) =>
@@ -195,6 +200,18 @@ export function InboxPage({
     });
     setNotice("Report sent to the moderator team.");
   }
+  async function markMessageRead(message: AccountMessage) {
+    await api(`/api/messages/${message.source}/${message.id}/read`, {
+      method: "POST",
+    });
+    setMessages((current) =>
+      current.map((item) =>
+        item.id === message.id && item.source === message.source
+          ? { ...item, readAt: new Date().toISOString() }
+          : item,
+      ),
+    );
+  }
   const incoming = requests.filter(
     (item) => item.direction === "incoming" && item.status === "pending",
   );
@@ -209,6 +226,37 @@ export function InboxPage({
       {notice && <p className="success">{notice}</p>}
       {error && <p className="error">{error}</p>}
       {!masterKey && <VaultLocked unlock={unlock} error={unlockError} />}
+      {messages.length > 0 && (
+        <section className="account-messages">
+          <h2>Account messages</h2>
+          <div className="stack-list">
+            {messages.map((message) => (
+              <article
+                className={`account-message message-${message.kind}${message.readAt ? "" : " unread"}`}
+                key={`${message.source}-${message.id}`}
+              >
+                <div className="message-heading">
+                  <span className="status">
+                    {message.kind.replaceAll("_", " ")}
+                  </span>
+                  <small>{new Date(message.createdAt).toLocaleString()}</small>
+                </div>
+                <h3>{message.title}</h3>
+                {message.author && <small>From @{message.author}</small>}
+                <p className="pre-wrap">{message.body}</p>
+                {!message.readAt && (
+                  <button
+                    className="secondary"
+                    onClick={() => markMessageRead(message)}
+                  >
+                    Mark read
+                  </button>
+                )}
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
       <div className="inbox-grid">
         <section>
           <h2>Requests for you</h2>

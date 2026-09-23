@@ -4,6 +4,7 @@ import type { Env } from "./context";
 import { audit, notify, requireRole, requireUser } from "./context";
 import { HttpError, body, json } from "./http";
 import { id, isoAfter, parseJson, randomToken, sha256 } from "./security";
+import { welcomeMessageFor } from "./communications";
 
 export function invitationRolesFor(
   requestedRoles: unknown,
@@ -55,17 +56,22 @@ export async function decideMember(
   requireRole(user, "moderator");
   const input = await body<{ decision?: "approve" | "deny" }>(request);
   const pending = await env.DB.prepare(
-    "SELECT 1 FROM users WHERE id = ? AND status = 'pending'",
+    "SELECT roles_json FROM users WHERE id = ? AND status = 'pending'",
   )
     .bind(memberId)
-    .first();
+    .first<{ roles_json: string }>();
   if (!pending) throw new HttpError(404, "Pending member not found.");
   if (input.decision === "approve") {
-    await env.DB.prepare(
-      "UPDATE users SET status = 'active', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?",
-    )
-      .bind(user.id, memberId)
-      .run();
+    const roles = parseJson<Role[]>(pending.roles_json, ["member"]);
+    const welcome = welcomeMessageFor(roles);
+    await env.DB.batch([
+      env.DB.prepare(
+        "UPDATE users SET status = 'active', approved_at = CURRENT_TIMESTAMP, approved_by = ? WHERE id = ?",
+      ).bind(user.id, memberId),
+      env.DB.prepare(
+        "INSERT INTO member_messages (id, user_id, kind, title, body) VALUES (?, ?, 'welcome', ?, ?)",
+      ).bind(id("message"), memberId, welcome.title, welcome.body),
+    ]);
     await audit(env, user.id, "member.approved", "user", memberId);
     await notify(
       env,

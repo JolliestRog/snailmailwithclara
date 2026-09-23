@@ -48,8 +48,40 @@ export interface CurrentUser extends PublicProfile {
   roles: Role[];
   email: string | null;
   emailNotifications: boolean;
+  newsletterOptIn: boolean;
   settings: MailSettings;
   hasAddress: boolean;
+}
+
+export type AnnouncementKind = "newsletter" | "update" | "warning";
+
+export interface AccountMessage {
+  id: string;
+  source: "personal" | "announcement";
+  kind: "welcome" | "system" | AnnouncementKind;
+  title: string;
+  body: string;
+  createdAt: string;
+  readAt: string | null;
+  author?: string | null;
+}
+
+export type FeedbackKind = "bug" | "feature";
+
+export interface FeedbackView {
+  id: string;
+  kind: FeedbackKind;
+  title: string;
+  summary: string;
+  steps: string;
+  expected: string;
+  actual: string;
+  pageUrl: string;
+  buildSha: string;
+  status: "new" | "triaged" | "planned" | "closed";
+  n8nStatus: "pending" | "delivered" | "failed";
+  createdAt: string;
+  username?: string;
 }
 
 export type LandingTheme = "signal-red" | "acid-yellow" | "midnight-blue";

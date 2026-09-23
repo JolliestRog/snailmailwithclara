@@ -26,6 +26,7 @@ interface MeRow {
   roles_json: string;
   email: string | null;
   email_notifications: number;
+  newsletter_opt_in: number;
   public_encryption_key: string;
   roulette_enabled: number;
   anonymous_enabled: number;
@@ -52,7 +53,7 @@ export async function me(request: Request, env: Env): Promise<Response> {
   if (!session) return json({ user: null });
   const row = await env.DB.prepare(
     `SELECT u.id, u.username, u.display_name, u.bio, u.country_code, u.status, u.roles_json,
-            u.email, u.email_notifications, u.public_encryption_key,
+            u.email, u.email_notifications, u.newsletter_opt_in, u.public_encryption_key,
             s.roulette_enabled, s.anonymous_enabled, s.monthly_limit, s.destination_mode,
             s.destination_countries_json, s.paused,
             CASE WHEN v.user_id IS NULL THEN 0 ELSE 1 END AS has_address
@@ -75,6 +76,7 @@ export async function me(request: Request, env: Env): Promise<Response> {
     roles: parseJson<Role[]>(row.roles_json, ["member"]),
     email: row.email,
     emailNotifications: Boolean(row.email_notifications),
+    newsletterOptIn: Boolean(row.newsletter_opt_in),
     settings: settingsFrom(row),
     hasAddress: Boolean(row.has_address),
   };
@@ -92,6 +94,7 @@ export async function updateProfile(
     countryCode?: string;
     email?: string | null;
     emailNotifications?: boolean;
+    newsletterOptIn?: boolean;
   }>(request);
   const displayName = cleanText(input.displayName, 80) || null;
   const bio = cleanText(input.bio, 280) || null;
@@ -101,8 +104,14 @@ export async function updateProfile(
   const email = cleanText(input.email, 254).toLowerCase() || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email))
     throw new HttpError(400, "Enter a valid email address.");
+  if (input.newsletterOptIn && !email)
+    throw new HttpError(
+      400,
+      "Add an email address before joining newsletters.",
+    );
   await env.DB.prepare(
-    `UPDATE users SET display_name = ?, bio = ?, country_code = ?, email = ?, email_notifications = ? WHERE id = ?`,
+    `UPDATE users SET display_name = ?, bio = ?, country_code = ?, email = ?,
+      email_notifications = ?, newsletter_opt_in = ? WHERE id = ?`,
   )
     .bind(
       displayName,
@@ -110,6 +119,7 @@ export async function updateProfile(
       countryCode,
       email,
       email && input.emailNotifications ? 1 : 0,
+      email && input.newsletterOptIn ? 1 : 0,
       user.id,
     )
     .run();
@@ -283,7 +293,7 @@ export async function deleteAccount(
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE users SET status = 'deleted', username = 'deleted-' || id, display_name = NULL, bio = NULL,
-       email = NULL, email_notifications = 0, public_encryption_key = '', encrypted_private_key_json = '{}',
+       email = NULL, email_notifications = 0, newsletter_opt_in = 0, public_encryption_key = '', encrypted_private_key_json = '{}',
        recovery_wrapped_master_key_json = '{}', deleted_at = CURRENT_TIMESTAMP WHERE id = ?`,
     ).bind(user.id),
     env.DB.prepare("DELETE FROM address_vaults WHERE user_id = ?").bind(

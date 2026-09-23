@@ -798,6 +798,29 @@ textarea {
 .invite-output textarea {
   margin-top: 0.5rem;
 }
+.account-messages {
+  margin: 0 0 2rem;
+}
+.account-message {
+  padding: 1.1rem;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  box-shadow: 5px 5px 0 color-mix(in srgb, var(--ink) 18%, transparent);
+}
+.account-message.unread {
+  border-left: 8px solid var(--red);
+}
+.message-warning {
+  background: color-mix(in srgb, var(--acid) 32%, var(--paper));
+}
+.message-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.pre-wrap {
+  white-space: pre-wrap;
+}
 .recovery-tools {
   margin-bottom: 2rem;
 }

@@ -12,6 +12,8 @@ An invitation-only, consent-first physical-mail exchange for Clara's Riot Fest c
 - Clara's block-based landing-page editor with drafts, preview, publishing, image metadata removal, and revision history.
 - Separate member, moderator, curator, and security-administrator capabilities with an audit trail.
 - Username-independent, single-use invitation batches: moderators can issue member codes, while only security administrators can issue moderator or curator codes. Invitations never grant `security_admin`.
+- Role-aware welcome messages, in-app updates, consent-based Clara newsletters through Resend, and retryable email delivery.
+- Structured beta feedback stored in D1 and forwarded to a secret n8n webhook for maintenance automation.
 - A Cloudflare Worker, D1 database, R2 media bucket, scheduled cleanup, and a React frontend on one origin.
 
 ## Security boundary
@@ -74,6 +76,15 @@ npm run check
 5. Have Clara create a normal invitation for the separate operator account. After approval, grant `security_admin` once through D1 from an authenticated operational console. Do not give Clara this role by default.
 
 6. Enable branch protection, required CI, deployment environment approval, Cloudflare account MFA, and least-privilege API tokens before inviting members.
+
+Optional beta operations integrations:
+
+```sh
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put N8N_FEEDBACK_WEBHOOK_URL
+```
+
+`RESEND_FROM` must use a sender on a verified Resend domain. Newsletter consent is separate from generic alert consent. The n8n webhook URL is treated as a capability secret and must never be committed; import `n8n/feedback-workflow.template.json` with a random production webhook path, activate it, and store the resulting URL as the Worker secret.
 
 The `ORIGIN` and `RP_ID` production values are intentionally fixed to the custom domain. Changing the hostname requires an explicit passkey migration plan.
 

@@ -17,6 +17,7 @@ export function SettingsPage({
     countryCode: user.countryCode ?? "US",
     email: user.email ?? "",
     emailNotifications: user.emailNotifications,
+    newsletterOptIn: user.newsletterOptIn,
   });
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -145,9 +146,20 @@ export function SettingsPage({
           />{" "}
           Send generic email reminders
         </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={profile.newsletterOptIn}
+            onChange={(e) =>
+              setProfile({ ...profile, newsletterOptIn: e.target.checked })
+            }
+          />{" "}
+          Receive Clara's newsletters and community notes
+        </label>
         <p className="fine-print">
-          Email is not part of the encrypted vault. Alert messages never include
-          names, requests, or addresses.
+          Both choices are optional and can be turned off here. Email is not
+          part of the encrypted vault. Messages never include postal addresses
+          or recovery codes.
         </p>
         {notice && <p className="success">{notice}</p>}
         {error && <p className="error">{error}</p>}
