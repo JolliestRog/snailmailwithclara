@@ -794,7 +794,8 @@ textarea {
 .moderation-grid > section {
   min-width: 0;
 }
-.invite-output input {
+.invite-output input,
+.invite-output textarea {
   margin-top: 0.5rem;
 }
 .recovery-tools {

@@ -5,6 +5,34 @@ import { audit, notify, requireRole, requireUser } from "./context";
 import { HttpError, body, json } from "./http";
 import { id, isoAfter, parseJson, randomToken, sha256 } from "./security";
 
+export function invitationRolesFor(
+  requestedRoles: unknown,
+  canAssignPrivileged: boolean,
+): Role[] {
+  if (
+    !Array.isArray(requestedRoles) ||
+    requestedRoles.some(
+      (role) =>
+        typeof role !== "string" ||
+        !["member", "moderator", "curator"].includes(role),
+    )
+  )
+    throw new HttpError(
+      400,
+      "Invitation roles may include member, moderator, or curator.",
+    );
+  const roles = [...new Set<Role>(["member", ...(requestedRoles as Role[])])];
+  if (
+    roles.some((role) => role === "moderator" || role === "curator") &&
+    !canAssignPrivileged
+  )
+    throw new HttpError(
+      403,
+      "Only the security administrator can create privileged invitations.",
+    );
+  return roles;
+}
+
 export async function pendingMembers(
   request: Request,
   env: Env,
@@ -67,20 +95,69 @@ export async function createInvitation(
 ): Promise<Response> {
   const user = await requireUser(request, env);
   requireRole(user, "moderator");
-  const input = await body<{ expiresInDays?: number }>(request);
-  const days = Math.min(30, Math.max(1, Number(input.expiresInDays ?? 7)));
-  const token = randomToken(24);
-  const invitationId = id("invite");
+  const input = await body<{
+    expiresInDays?: number;
+    count?: number;
+    roles?: Role[];
+  }>(request);
+  const requestedDays = Number(input.expiresInDays ?? 7);
+  if (!Number.isInteger(requestedDays))
+    throw new HttpError(400, "Choose a whole number of days.");
+  const days = Math.min(30, Math.max(1, requestedDays));
+  const count = Number(input.count ?? 1);
+  if (!Number.isInteger(count) || count < 1 || count > 50)
+    throw new HttpError(400, "Create between 1 and 50 invitations.");
+  const roles = invitationRolesFor(
+    input.roles ?? ["member"],
+    user.roles.includes("security_admin"),
+  );
   const expiresAt = isoAfter(days * 24 * 60 * 60_000);
-  await env.DB.prepare(
-    `INSERT INTO invitations (id, token_hash, created_by, roles_json, expires_at) VALUES (?, ?, ?, '["member"]', ?)`,
-  )
-    .bind(invitationId, await sha256(token), user.id, expiresAt)
-    .run();
-  await audit(env, user.id, "invitation.created", "invitation", invitationId, {
-    days,
-  });
-  return json({ invitationId, token, expiresAt }, { status: 201 });
+  const invitations = await Promise.all(
+    Array.from({ length: count }, async () => {
+      const token = randomToken(24);
+      return {
+        invitationId: id("invite"),
+        token,
+        tokenHash: await sha256(token),
+      };
+    }),
+  );
+  await env.DB.batch(
+    invitations.map((invitation) =>
+      env.DB.prepare(
+        "INSERT INTO invitations (id, token_hash, created_by, roles_json, expires_at) VALUES (?, ?, ?, ?, ?)",
+      ).bind(
+        invitation.invitationId,
+        invitation.tokenHash,
+        user.id,
+        JSON.stringify(roles),
+        expiresAt,
+      ),
+    ),
+  );
+  await audit(
+    env,
+    user.id,
+    "invitation.batch_created",
+    "invitation_batch",
+    null,
+    {
+      days,
+      count,
+      roles,
+      invitationIds: invitations.map((invitation) => invitation.invitationId),
+    },
+  );
+  return json(
+    {
+      invitations: invitations.map(({ invitationId, token }) => ({
+        invitationId,
+        token,
+        expiresAt,
+      })),
+    },
+    { status: 201 },
+  );
 }
 
 export async function createRecoveryInvitation(

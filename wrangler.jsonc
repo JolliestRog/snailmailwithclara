@@ -8,21 +8,27 @@
     "directory": "./dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/media/*"]
+    "run_worker_first": ["/api/*", "/media/*"],
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "snailmailwithclara",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
-      "migrations_dir": "migrations"
-    }
+      "database_id": "6ef17caf-9537-4a29-a015-85e6914d84ca",
+      "migrations_dir": "migrations",
+    },
   ],
   "r2_buckets": [
     {
       "binding": "MEDIA",
-      "bucket_name": "snailmailwithclara-media"
-    }
+      "bucket_name": "snailmailwithclara-media",
+    },
+  ],
+  "routes": [
+    {
+      "pattern": "snailmailwithclara.facey.page",
+      "custom_domain": true,
+    },
   ],
   "vars": {
     "RP_NAME": "Snail Mail with Clara",
@@ -30,7 +36,9 @@
     "ORIGIN": "https://snailmailwithclara.facey.page",
     "NOTIFY_FROM": "notifications@snailmailwithclara.facey.page",
     "REPOSITORY_URL": "https://github.com/JolliestRog/snailmailwithclara",
-    "BUILD_SHA": "development"
+    "BUILD_SHA": "development",
   },
-  "triggers": { "crons": ["17 3 * * *"] }
+  "triggers": {
+    "crons": ["17 3 * * *"],
+  },
 }

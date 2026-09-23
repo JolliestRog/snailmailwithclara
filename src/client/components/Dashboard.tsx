@@ -88,7 +88,7 @@ export function Dashboard(props: Props) {
           <SettingsPage user={props.user} refreshUser={props.refreshUser} />
         )}
         {tab === "curation" && <CurationPage />}
-        {tab === "moderation" && <ModerationPage />}
+        {tab === "moderation" && <ModerationPage user={props.user} />}
       </section>
     </main>
   );

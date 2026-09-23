@@ -11,6 +11,7 @@ An invitation-only, consent-first physical-mail exchange for Clara's Riot Fest c
 - Fourteen-day encrypted address grants, automatic expiration, blocking, reporting, and deletion.
 - Clara's block-based landing-page editor with drafts, preview, publishing, image metadata removal, and revision history.
 - Separate member, moderator, curator, and security-administrator capabilities with an audit trail.
+- Username-independent, single-use invitation batches: moderators can issue member codes, while only security administrators can issue moderator or curator codes. Invitations never grant `security_admin`.
 - A Cloudflare Worker, D1 database, R2 media bucket, scheduled cleanup, and a React frontend on one origin.
 
 ## Security boundary

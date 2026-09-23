@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
+import type { CurrentUser, Role } from "../../shared/types";
 import { api, jsonBody } from "../api";
 import { PageTitle } from "./VaultPage";
+
+type InvitePreset = "member" | "moderator" | "clara";
+
+const inviteRoles: Record<InvitePreset, Role[]> = {
+  member: ["member"],
+  moderator: ["member", "moderator"],
+  clara: ["member", "moderator", "curator"],
+};
 
 interface PendingMember {
   id: string;
@@ -27,11 +36,15 @@ interface AuditEvent {
   created_at: string;
 }
 
-export function ModerationPage() {
+export function ModerationPage({ user }: { user: CurrentUser }) {
   const [members, setMembers] = useState<PendingMember[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [invite, setInvite] = useState("");
+  const [inviteOutput, setInviteOutput] = useState("");
+  const [inviteCount, setInviteCount] = useState(1);
+  const [inviteDays, setInviteDays] = useState(7);
+  const [invitePreset, setInvitePreset] = useState<InvitePreset>("member");
+  const [creatingInvites, setCreatingInvites] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [recoveryUsername, setRecoveryUsername] = useState("");
@@ -58,17 +71,39 @@ export function ModerationPage() {
     setNotice(`Application ${decision === "approve" ? "approved" : "denied"}.`);
     await load();
   }
-  async function makeInvite() {
-    const result = await api<{ token: string }>("/api/moderation/invitations", {
-      method: "POST",
-      ...jsonBody({ expiresInDays: 7 }),
-    });
-    const url = `${location.origin}/join?invite=${encodeURIComponent(result.token)}`;
-    setInvite(url);
-    await navigator.clipboard.writeText(url).catch(() => undefined);
-    setNotice(
-      "Invitation created and copied. It expires in seven days and works once.",
-    );
+  async function makeInvites() {
+    setCreatingInvites(true);
+    setError("");
+    try {
+      const result = await api<{
+        invitations: Array<{ token: string; expiresAt: string }>;
+      }>("/api/moderation/invitations", {
+        method: "POST",
+        ...jsonBody({
+          count: inviteCount,
+          expiresInDays: inviteDays,
+          roles: inviteRoles[invitePreset],
+        }),
+      });
+      const urls = result.invitations.map(
+        ({ token }) =>
+          `${location.origin}/join?invite=${encodeURIComponent(token)}`,
+      );
+      const output = urls.join("\n");
+      setInviteOutput(output);
+      await navigator.clipboard.writeText(output).catch(() => undefined);
+      setNotice(
+        `${urls.length} one-time invitation${urls.length === 1 ? "" : "s"} created and copied. They expire in ${inviteDays} day${inviteDays === 1 ? "" : "s"}.`,
+      );
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not create invitations.",
+      );
+    } finally {
+      setCreatingInvites(false);
+    }
   }
   async function makeRecovery() {
     const result = await api<{ token: string; username: string }>(
@@ -76,7 +111,7 @@ export function ModerationPage() {
       { method: "POST", ...jsonBody({ username: recoveryUsername }) },
     );
     const url = `${location.origin}/recover?username=${encodeURIComponent(result.username)}&token=${encodeURIComponent(result.token)}`;
-    setInvite(url);
+    setInviteOutput(url);
     await navigator.clipboard.writeText(url).catch(() => undefined);
     setNotice(
       "Recovery link created and copied. It expires in 30 minutes and does not reveal or reset the address vault.",
@@ -96,17 +131,74 @@ export function ModerationPage() {
   }
   return (
     <>
-      <PageTitle kicker="Care with accountability" title="Moderation desk">
-        <button onClick={makeInvite}>Create one-time invite</button>
-      </PageTitle>
+      <PageTitle kicker="Care with accountability" title="Moderation desk" />
       {notice && <p className="success">{notice}</p>}
       {error && <p className="error">{error}</p>}
-      {invite && (
+      {inviteOutput && (
         <div className="notice invite-output">
-          <strong>One-time link</strong>
-          <input readOnly value={invite} onFocus={(e) => e.target.select()} />
+          <strong>Private one-time links</strong>
+          <textarea
+            readOnly
+            rows={Math.min(10, inviteOutput.split("\n").length + 1)}
+            value={inviteOutput}
+            onFocus={(event) => event.currentTarget.select()}
+          />
         </div>
       )}
+      <section className="panel recovery-tools">
+        <h2>Create invitation codes</h2>
+        <p>
+          Codes are not attached to usernames. Each works once; whoever receives
+          it chooses their username during registration.
+        </p>
+        <div className="form-grid">
+          <label>
+            Access
+            <select
+              value={invitePreset}
+              onChange={(event) =>
+                setInvitePreset(event.target.value as InvitePreset)
+              }
+            >
+              <option value="member">Beta member</option>
+              {user.roles.includes("security_admin") && (
+                <>
+                  <option value="moderator">Member + moderator</option>
+                  <option value="clara">
+                    Clara: member + moderator + curator
+                  </option>
+                </>
+              )}
+            </select>
+          </label>
+          <label>
+            Number of codes
+            <input
+              type="number"
+              min="1"
+              max="50"
+              value={inviteCount}
+              onChange={(event) => setInviteCount(Number(event.target.value))}
+            />
+          </label>
+          <label>
+            Expires after days
+            <input
+              type="number"
+              min="1"
+              max="30"
+              value={inviteDays}
+              onChange={(event) => setInviteDays(Number(event.target.value))}
+            />
+          </label>
+        </div>
+        <button onClick={makeInvites} disabled={creatingInvites}>
+          {creatingInvites ? "Creating…" : "Create and copy codes"}
+        </button>
+        <p className="fine-print">
+          Security administrator access is never granted by an invitation code.
+        </p>
+      </section>
       <section className="panel recovery-tools">
         <h2>Lost-passkey recovery</h2>
         <p>
