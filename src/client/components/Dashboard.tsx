@@ -30,8 +30,16 @@ interface Props {
   signOut: () => Promise<void>;
 }
 
+const primaryMobileTabs: Array<[Tab, string]> = [
+  ["inbox", "Inbox"],
+  ["directory", "People"],
+  ["roulette", "Roulette"],
+  ["settings", "Settings"],
+];
+
 export function Dashboard(props: Props) {
   const [tab, setTab] = useState<Tab>("inbox");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const tabs: Array<[Tab, string]> = [
     ["inbox", "Inbox"],
     ["directory", "People"],
@@ -50,6 +58,21 @@ export function Dashboard(props: Props) {
     tabs.push(["updates", "Updates"]);
   if (props.user.roles.includes("moderator"))
     tabs.push(["moderation", "Moderation"]);
+
+  const primaryMobileKeys = new Set(primaryMobileTabs.map(([key]) => key));
+  const secondaryTabs = tabs.filter(([key]) => !primaryMobileKeys.has(key));
+  const secondaryTabActive = secondaryTabs.some(([key]) => key === tab);
+
+  function selectTab(nextTab: Tab) {
+    setTab(nextTab);
+    setMobileMenuOpen(false);
+  }
+
+  function signOutFromMobileMenu() {
+    setMobileMenuOpen(false);
+    void props.signOut();
+  }
+
   return (
     <main id="main" className="app-shell">
       <aside className="app-sidebar">
@@ -65,7 +88,7 @@ export function Dashboard(props: Props) {
             <button
               className={tab === key ? "active" : ""}
               key={key}
-              onClick={() => setTab(key)}
+              onClick={() => selectTab(key)}
             >
               {label}
             </button>
@@ -103,6 +126,79 @@ export function Dashboard(props: Props) {
         {tab === "updates" && <UpdatesPage user={props.user} />}
         {tab === "moderation" && <ModerationPage user={props.user} />}
       </section>
+
+      <nav className="mobile-app-nav" aria-label="Primary account sections">
+        {primaryMobileTabs.map(([key, label]) => (
+          <button
+            className={tab === key ? "active" : ""}
+            key={key}
+            aria-current={tab === key ? "page" : undefined}
+            onClick={() => selectTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+        <button
+          className={mobileMenuOpen || secondaryTabActive ? "active" : ""}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-more-menu"
+          onClick={() => setMobileMenuOpen((open) => !open)}
+        >
+          More
+        </button>
+      </nav>
+
+      {mobileMenuOpen && (
+        <div
+          className="mobile-more-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <section
+            id="mobile-more-menu"
+            className="mobile-more-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-more-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div className="member-badge">
+                <span>
+                  {props.user.displayName?.[0] ?? props.user.username[0]}
+                </span>
+                <div>
+                  <strong>{props.user.displayName || props.user.username}</strong>
+                  <small>@{props.user.username}</small>
+                </div>
+              </div>
+              <button
+                className="mobile-more-close"
+                aria-label="Close account menu"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                ×
+              </button>
+            </header>
+            <h2 id="mobile-more-title" className="sr-only">
+              More account sections
+            </h2>
+            <div className="mobile-more-actions">
+              {secondaryTabs.map(([key, label]) => (
+                <button
+                  className={tab === key ? "active" : ""}
+                  key={key}
+                  onClick={() => selectTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <button className="mobile-signout" onClick={signOutFromMobileMenu}>
+              Sign out
+            </button>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
